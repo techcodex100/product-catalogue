@@ -1,0 +1,27 @@
+<<<<<<< HEAD
+services:
+  - type: web
+    name: fastapi-pdf-generator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    plan: free
+=======
+<<<<<<< HEAD
+services:
+  - type: web
+    name: fastapi-pdf-generator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    plan: free
+=======
+services:
+  - type: web
+    name: fastapi-pdf-generator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    plan: free
+>>>>>>> c6bac8ad4df6af1dc414dba98c92434c4d10f28a
+>>>>>>> fd32d464763a6b4ada6b435112fdaae2f364e6ed
