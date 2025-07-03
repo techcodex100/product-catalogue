@@ -8,6 +8,7 @@ from reportlab.lib import colors
 from io import BytesIO
 import threading
 import os
+import requests
 
 app = FastAPI()
 lock = threading.Lock()
@@ -157,19 +158,35 @@ async def generate_catalog_pdf(data: ProductData):
     }
 
     for img in data.images:
-        basename, ext = os.path.splitext(img.path.lower())
-        basename = basename.strip().replace(" ", "")
-        if basename in placements:
-            x, y, w, h = placements[basename]
-            if os.path.exists(img.path):
-                try:
-                    c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
-                except Exception as e:
-                    print(f"Image error ({img.path}): {e}")
+    # Normalize the image name
+     basename, ext = os.path.splitext(os.path.basename(img.path.lower()))
+     basename = basename.replace(" ", "").strip()
+
+    # Check if static placement exists
+     if basename in placements:
+        x, y, w, h = placements[basename]
+     elif all([img.x, img.y, img.w, img.h]):
+        x, y, w, h = img.x, img.y, img.w, img.h
+     else:
+        print(f"No placement defined for: {img.path}")
+        continue
+
+    try:
+        if img.path.startswith("http://") or img.path.startswith("https://"):
+            # Fetch and render remote image
+            response = requests.get(img.path, timeout=10)
+            if response.status_code == 200:
+                c.drawImage(ImageReader(BytesIO(response.content)), x, y, width=w, height=h, preserveAspectRatio=True)
             else:
-                print(f"File not found: {img.path}")
+                print(f"Failed to fetch image from URL: {img.path} (Status {response.status_code})")
+        elif os.path.exists(img.path):
+            # Render local file
+            c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
         else:
-            print(f"No placement defined for: {img.path}")
+            print(f"File not found: {img.path}")
+    except Exception as e:
+        print(f"Image error ({img.path}): {e}")
+
 
     # Footer
     c.setFont("Helvetica", 8)
