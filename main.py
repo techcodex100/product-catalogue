@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Response, Request
-from pydantic import BaseModel, conlist, confloat
+from pydantic import BaseModel
 from typing import List, Optional
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -8,7 +8,6 @@ from reportlab.lib import colors
 from io import BytesIO
 import threading
 import os
-import requests
 
 app = FastAPI()
 lock = threading.Lock()
@@ -20,7 +19,6 @@ class ImageData(BaseModel):
     y: Optional[float] = None
     w: Optional[float] = None
     h: Optional[float] = None
-
 
 class ProductData(BaseModel):
     name: str
@@ -137,7 +135,7 @@ async def generate_catalog_pdf(data: ProductData):
         c.drawString(50, y_desc, line)
         y_desc -= 13
 
-    # Specifications (Bottom-Right Box)
+    # Specifications
     spec_x = width - 200
     spec_y = 490
     if data.specifications:
@@ -157,36 +155,30 @@ async def generate_catalog_pdf(data: ProductData):
         "su1": (40, 160, 350, 160)
     }
 
+    script_dir = os.path.dirname(__file__)
+
     for img in data.images:
-    # Normalize the image name
-     basename, ext = os.path.splitext(os.path.basename(img.path.lower()))
-     basename = basename.replace(" ", "").strip()
+        basename = os.path.splitext(os.path.basename(img.path))[0]
+        basename = basename.strip().replace(" ", "").lower()
 
-    # Check if static placement exists
-     if basename in placements:
-        x, y, w, h = placements[basename]
-     elif all([img.x, img.y, img.w, img.h]):
-        x, y, w, h = img.x, img.y, img.w, img.h
-     else:
-        print(f"No placement defined for: {img.path}")
-        continue
-
-    try:
-        if img.path.startswith("http://") or img.path.startswith("https://"):
-            # Fetch and render remote image
-            response = requests.get(img.path, timeout=10)
-            if response.status_code == 200:
-                c.drawImage(ImageReader(BytesIO(response.content)), x, y, width=w, height=h, preserveAspectRatio=True)
-            else:
-                print(f"Failed to fetch image from URL: {img.path} (Status {response.status_code})")
-        elif os.path.exists(img.path):
-            # Render local file
-            c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
+        if basename in placements:
+            x, y, w, h = placements[basename]
+        elif all([img.x, img.y, img.w, img.h]):
+            x, y, w, h = img.x, img.y, img.w, img.h
         else:
-            print(f"File not found: {img.path}")
-    except Exception as e:
-        print(f"Image error ({img.path}): {e}")
+            print(f"No placement defined for: {img.path}")
+            continue
 
+        image_path = img.path if os.path.isabs(img.path) else os.path.join(script_dir, img.path)
+
+        try:
+            if os.path.exists(image_path):
+                c.drawImage(ImageReader(image_path), x, y, width=w, height=h, preserveAspectRatio=True)
+                print(f"Image added: {image_path} at ({x}, {y}, {w}, {h})")
+            else:
+                print(f"File not found: {image_path}")
+        except Exception as e:
+            print(f"Image error ({image_path}): {e}")
 
     # Footer
     c.setFont("Helvetica", 8)
