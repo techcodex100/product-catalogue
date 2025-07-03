@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Response
-from pydantic import BaseModel
+from fastapi import FastAPI, Response, Request
+from pydantic import BaseModel, conlist, confloat
 from typing import List, Optional
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -13,13 +13,12 @@ app = FastAPI()
 lock = threading.Lock()
 COUNTER_FILE = "counter.txt"
 
-
 class ImageData(BaseModel):
     path: str
-    x: float
-    y: float
-    w: float
-    h: float
+    x: confloat()
+    y: confloat()
+    w: confloat()
+    h: confloat()
 
 class ProductData(BaseModel):
     name: str
@@ -33,6 +32,34 @@ class ProductData(BaseModel):
     specifications: List[str] = []
     images: List[ImageData] = []
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Zinc Oxide",
+                "hs_code": "28170010",
+                "quantity": "500",
+                "unit": "KG",
+                "fcl_type": "20 FCL",
+                "packaging": "HDPE Bags",
+                "quantity_per_fcl": "24 MT",
+                "description": [
+                    "White powdered compound used in rubber, ceramics, and cosmetics.",
+                    "High purity, low lead content, suitable for industrial applications."
+                ],
+                "specifications": [
+                    "Purity: 99.7%",
+                    "Particle Size: < 5 microns",
+                    "Lead Content: < 0.001%"
+                ],
+                "images": [
+                    {"path": "su2.jpg", "x": 430, "y": 690, "w": 140, "h": 110},
+                    {"path": "raw29.jpg", "x": 60, "y": 370, "w": 300, "h": 160},
+                    {"path": "raw12.jpg", "x": 400, "y": 140, "w": 140, "h": 90},
+                    {"path": "su1.jpg", "x": 40, "y": 160, "w": 350, "h": 160}
+                ]
+            }
+        }
+
 def get_next_counter():
     with lock:
         if not os.path.exists(COUNTER_FILE):
@@ -45,6 +72,12 @@ def get_next_counter():
             f.write(str(count + 1))
             f.truncate()
             return count
+
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    body = await request.body()
+    print("Incoming Request Body:", body.decode())
+    return await call_next(request)
 
 @app.get("/")
 def home():
@@ -114,12 +147,12 @@ async def generate_catalog_pdf(data: ProductData):
             c.drawString(spec_x + 10, spec_y, f"• {spec}")
             spec_y -= 12
 
-    # Images
+    # Image Placement
     placements = {
-        "su2.jpg": (430, 690, 140, 110),       # Top-right image — slightly larger
-        "raw29.jpg": (60, 370, 300, 160),     # Center main image — wider & taller
-        "raw12.jpg": (400, 140, 140, 90),     # Bottom-left logo — bigger but still balanced
-        "su1.jpg": ( 40, 160, 350, 160)         # Centered above footer
+        "su2.jpg": (430, 690, 140, 110),
+        "raw29.jpg": (60, 370, 300, 160),
+        "raw12.jpg": (400, 140, 140, 90),
+        "su1.jpg": (40, 160, 350, 160)
     }
     for label, (x, y, w, h) in placements.items():
         for img in data.images:
@@ -127,7 +160,7 @@ async def generate_catalog_pdf(data: ProductData):
                 try:
                     c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
                 except Exception as e:
-                    print(f"Image error ({label}):", e)
+                    print(f"Image error ({label}): {e}")
 
     # Footer
     c.setFont("Helvetica", 8)
@@ -135,7 +168,6 @@ async def generate_catalog_pdf(data: ProductData):
     c.drawCentredString(width / 2, 30, "Codex Automation Key, Indore, M.P., India")
     c.drawCentredString(width / 2, 18, "Tel: (+91) 731 2515151 • Email: info@codexautomationkey.com")
 
-    # Finalize PDF
     c.save()
     buffer.seek(0)
     return Response(
