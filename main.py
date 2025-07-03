@@ -15,10 +15,11 @@ COUNTER_FILE = "counter.txt"
 
 class ImageData(BaseModel):
     path: str
-    x: confloat()
-    y: confloat()
-    w: confloat()
-    h: confloat()
+    x: Optional[float] = None
+    y: Optional[float] = None
+    w: Optional[float] = None
+    h: Optional[float] = None
+
 
 class ProductData(BaseModel):
     name: str
@@ -149,19 +150,29 @@ async def generate_catalog_pdf(data: ProductData):
 
     # Image Placement
     placements = {
-        "su2.jpg": (430, 690, 140, 110),
-        "raw29.jpg": (60, 370, 300, 160),
-        "raw12.jpg": (400, 140, 140, 90),
-        "su1.jpg": (40, 160, 350, 160)
-    }
-    for label, (x, y, w, h) in placements.items():
-        for img in data.images:
-            if img.path == label and os.path.exists(img.path):
-                try:
-                    c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
-                except Exception as e:
-                    print(f"Image error ({label}): {e}")
+    "su2.jpg": (430, 690, 140, 110),
+    "raw29.jpg": (60, 370, 300, 160),
+    "raw12.jpg": (400, 140, 140, 90),
+    "su1.jpg": (40, 160, 350, 160)
+}
 
+    for img in data.images:
+    # Use static placement if coordinates are missing or zero
+     if img.path in placements:
+        x, y, w, h = placements[img.path]
+     elif all([img.x, img.y, img.w, img.h]):
+        x, y, w, h = img.x, img.y, img.w, img.h
+     else:
+        print(f"Skipping image: {img.path} due to missing placement.")
+        continue
+
+     if os.path.exists(img.path):
+        try:
+            c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
+        except Exception as e:
+            print(f"Image error ({img.path}): {e}")
+
+    
     # Footer
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.black)
