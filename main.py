@@ -53,10 +53,10 @@ class ProductData(BaseModel):
                     "Lead Content: < 0.001%"
                 ],
                 "images": [
-                    {"path": "su2.jpg", "x": 430, "y": 690, "w": 140, "h": 110},
-                    {"path": "raw29.jpg", "x": 60, "y": 370, "w": 300, "h": 160},
-                    {"path": "raw12.jpg", "x": 400, "y": 140, "w": 140, "h": 90},
-                    {"path": "su1.jpg", "x": 40, "y": 160, "w": 350, "h": 160}
+                    {"path": "su2.jpg"},
+                    {"path": "raw29.jpeg"},
+                    {"path": "raw12.png"},
+                    {"path": "su1.jpg"}
                 ]
             }
         }
@@ -150,29 +150,27 @@ async def generate_catalog_pdf(data: ProductData):
 
     # Image Placement
     placements = {
-    "su2.jpg": (430, 690, 140, 110),
-    "raw29.jpg": (60, 370, 300, 160),
-    "raw12.jpg": (400, 140, 140, 90),
-    "su1.jpg": (40, 160, 350, 160)
-}
+        "su2": (430, 690, 140, 110),
+        "raw29": (60, 370, 300, 160),
+        "raw12": (400, 140, 140, 90),
+        "su1": (40, 160, 350, 160)
+    }
 
     for img in data.images:
-    # Use static placement if coordinates are missing or zero
-     if img.path in placements:
-        x, y, w, h = placements[img.path]
-     elif all([img.x, img.y, img.w, img.h]):
-        x, y, w, h = img.x, img.y, img.w, img.h
-     else:
-        print(f"Skipping image: {img.path} due to missing placement.")
-        continue
+        basename, ext = os.path.splitext(img.path.lower())
+        basename = basename.strip().replace(" ", "")
+        if basename in placements:
+            x, y, w, h = placements[basename]
+            if os.path.exists(img.path):
+                try:
+                    c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
+                except Exception as e:
+                    print(f"Image error ({img.path}): {e}")
+            else:
+                print(f"File not found: {img.path}")
+        else:
+            print(f"No placement defined for: {img.path}")
 
-     if os.path.exists(img.path):
-        try:
-            c.drawImage(ImageReader(img.path), x, y, width=w, height=h, preserveAspectRatio=True)
-        except Exception as e:
-            print(f"Image error ({img.path}): {e}")
-
-    
     # Footer
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.black)
