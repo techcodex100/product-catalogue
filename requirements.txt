@@ -1,3 +1,4 @@
 fastapi
 uvicorn
 reportlab
+requests>=2.0.0
