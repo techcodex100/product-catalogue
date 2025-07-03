@@ -52,10 +52,10 @@ class ProductData(BaseModel):
                     "Lead Content: < 0.001%"
                 ],
                 "images": [
-                    {"path": "su2.jpg"},
-                    {"path": "raw29.png"},
-                    {"path": "raw12.jpg"},
-                    {"path": "su1.jpg"}
+                    { "path": "su2.jpg" },
+                    { "path": "raw29.png" },
+                    { "path": "raw12.jpeg" },
+                    { "path": "su1.jpg" }
                 ]
             }
         }
@@ -147,48 +147,44 @@ async def generate_catalog_pdf(data: ProductData):
             c.drawString(spec_x + 10, spec_y, f"• {spec}")
             spec_y -= 12
 
-    # Image Placement with debug logs and rect borders
-    placements = {
-        "raw12": (430, 690, 140, 110),  # Top-right
-        "raw29": (60, 510, 300, 160),  # Left-middle
-        "su2": (60, 320, 300, 160),  # Left-lower
-        "su1": (60, 120, 300, 160)     # Left-bottom
+        placements = {
+        "su1":   (60, 140, 300, 140),
+        "raw12": (430, 690, 140, 110),
+        "raw29": (60, 530, 300, 140),
+        "su2":   (60, 340, 300, 140),
     }
 
     script_dir = os.path.dirname(__file__)
-    print("==== IMAGE DEBUG START ====")
+    MAX_WIDTH = 300
+    MAX_HEIGHT = 200
 
     for img in data.images:
-        print(f"\nProcessing image: {img.path}")
         basename = os.path.splitext(os.path.basename(img.path))[0]
         basename = basename.strip().replace(" ", "").lower()
-        print(f" → Resolved basename: '{basename}'")
 
         if basename in placements:
             x, y, w, h = placements[basename]
-            print(f" → Found in placements: ({x}, {y}, {w}, {h})")
         elif all([img.x, img.y, img.w, img.h]):
             x, y, w, h = img.x, img.y, img.w, img.h
-            print(f" → Using custom coordinates: ({x}, {y}, {w}, {h})")
         else:
-            print(f" ✗ No placement found and no coordinates provided for: {img.path}")
+            print(f"No placement defined for: {img.path}")
             continue
 
+        # Apply scaling
+        scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0)
+        w_scaled = w * scale
+        h_scaled = h * scale
+
         image_path = img.path if os.path.isabs(img.path) else os.path.join(script_dir, img.path)
-        print(f" → Final image path: {image_path}")
 
         try:
             if os.path.exists(image_path):
-                c.drawImage(ImageReader(image_path), x, y, width=w, height=h, preserveAspectRatio=True)
-                c.setStrokeColor(colors.grey)
-                c.rect(x, y, w, h)  # Visual rectangle border
-                print(f" ✓ Image added at ({x}, {y}, {w}, {h})")
+                c.drawImage(ImageReader(image_path), x, y, width=w_scaled, height=h_scaled, preserveAspectRatio=True)
+                print(f"✅ Image added: {basename} at ({x}, {y}, {w_scaled}, {h_scaled})")
             else:
-                print(f" ✗ File not found: {image_path}")
+                print(f"❌ File not found: {image_path}")
         except Exception as e:
-            print(f" ✗ Error rendering image '{img.path}': {e}")
-
-    print("==== IMAGE DEBUG END ====")
+            print(f"⚠️ Image error ({image_path}): {e}")
 
     # Footer
     c.setFont("Helvetica", 8)
