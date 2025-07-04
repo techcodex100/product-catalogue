@@ -106,8 +106,8 @@ async def generate_catalog_pdf(data: ProductData):
     # Images
     placements = {
         "raw29": (60, 480, 300, 160),
-        "su2":   (60, 290, 300, 160),
-        "su1":   (60, 100, 300, 160)
+        "su2":   (60, 290, 310, 160),
+        "su1":   (60, 100, 330, 160)
     }
     script_dir = os.path.dirname(__file__)
     MAX_WIDTH = 300
