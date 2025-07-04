@@ -8,6 +8,7 @@ from reportlab.lib import colors
 from io import BytesIO
 import threading
 import os
+from datetime import datetime  # ✅ Added for unique filename
 
 app = FastAPI()
 lock = threading.Lock()
@@ -60,19 +61,6 @@ class ProductData(BaseModel):
             }
         }
 
-def get_next_counter():
-    with lock:
-        if not os.path.exists(COUNTER_FILE):
-            with open(COUNTER_FILE, "w") as f:
-                f.write("1")
-            return 1
-        with open(COUNTER_FILE, "r+") as f:
-            count = int(f.read())
-            f.seek(0)
-            f.write(str(count + 1))
-            f.truncate()
-            return count
-
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     body = await request.body()
@@ -85,8 +73,8 @@ def home():
 
 @app.post("/generate-catalog-pdf/")
 async def generate_catalog_pdf(data: ProductData):
-    pdf_number = get_next_counter()
-    filename = f"Catalog_{pdf_number}.pdf"
+    # ✅ Use timestamp for unique filename
+    filename = f"Catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -106,27 +94,8 @@ async def generate_catalog_pdf(data: ProductData):
     c.setFillColor(colors.darkblue)
     c.drawCentredString(width / 2, height - 80, data.name.upper())
 
-    # Product Info
-    y_info = height - 110
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, y_info, "PRODUCT DETAILS:")
-    y_info -= 15
-    c.setFont("Helvetica", 9)
-    fields = [
-        ("HS Code", data.hs_code),
-        ("Quantity", data.quantity),
-        ("Unit", data.unit),
-        ("FCL Type", data.fcl_type),
-        ("Packaging", data.packaging),
-        ("Quantity per FCL", data.quantity_per_fcl)
-    ]
-    for label, value in fields:
-        if value:
-            c.drawString(50, y_info, f"{label}: {value}")
-            y_info -= 13
-
-    # Description
-    y_desc = y_info - 20
+    # Description section (replacing product details)
+    y_desc = height - 110
     c.setFont("Helvetica-Bold", 10)
     c.drawString(40, y_desc, "DESCRIPTION:")
     y_desc -= 15
@@ -135,23 +104,12 @@ async def generate_catalog_pdf(data: ProductData):
         c.drawString(50, y_desc, line)
         y_desc -= 13
 
-    # Specifications
-    spec_x = width - 200
-    spec_y = 490
-    if data.specifications:
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(spec_x, spec_y, "SPECIFICATIONS:")
-        spec_y -= 15
-        c.setFont("Helvetica", 9)
-        for spec in data.specifications:
-            c.drawString(spec_x + 10, spec_y, f"• {spec}")
-            spec_y -= 12
-
-        placements = {
-        "su1":   (60, 140, 300, 140),
-        "raw12": (430, 690, 140, 110),
-        "raw29": (60, 530, 300, 140),
-        "su2":   (60, 340, 300, 140),
+    # Image placements
+    placements = {
+        "raw12": (430, 650, 130, 100),
+        "raw29": (60, 480, 300, 160),
+        "su2":   (60, 290, 300, 160),
+        "su1":   (60, 100, 300, 160)
     }
 
     script_dir = os.path.dirname(__file__)
@@ -159,8 +117,7 @@ async def generate_catalog_pdf(data: ProductData):
     MAX_HEIGHT = 200
 
     for img in data.images:
-        basename = os.path.splitext(os.path.basename(img.path))[0]
-        basename = basename.strip().replace(" ", "").lower()
+        basename = os.path.splitext(os.path.basename(img.path))[0].strip().replace(" ", "").lower()
 
         if basename in placements:
             x, y, w, h = placements[basename]
@@ -170,7 +127,6 @@ async def generate_catalog_pdf(data: ProductData):
             print(f"No placement defined for: {img.path}")
             continue
 
-        # Apply scaling
         scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0)
         w_scaled = w * scale
         h_scaled = h * scale
@@ -185,6 +141,30 @@ async def generate_catalog_pdf(data: ProductData):
                 print(f"❌ File not found: {image_path}")
         except Exception as e:
             print(f"⚠️ Image error ({image_path}): {e}")
+
+    # Product Details + Specifications section at the bottom
+    bottom_y = 280
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(width - 200, bottom_y, "PRODUCT DETAILS & SPECIFICATIONS:")
+    bottom_y -= 15
+    c.setFont("Helvetica", 9)
+
+    details = [
+        ("HS Code", data.hs_code),
+        ("Quantity", data.quantity),
+        ("Unit", data.unit),
+        ("FCL Type", data.fcl_type),
+        ("Packaging", data.packaging),
+        ("Quantity per FCL", data.quantity_per_fcl)
+    ]
+    for label, value in details:
+        if value:
+            c.drawString(width - 190, bottom_y, f"{label}: {value}")
+            bottom_y -= 12
+
+    for spec in data.specifications:
+        c.drawString(width - 190, bottom_y, f"• {spec}")
+        bottom_y -= 12
 
     # Footer
     c.setFont("Helvetica", 8)
