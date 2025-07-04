@@ -147,7 +147,7 @@ async def generate_catalog_pdf(data: ProductData):
         c.drawString(width - 190, right_y, f"• {spec}")
         right_y -= 12
 
-    right_y -= 10
+    right_y -= 30
     c.setFont("Helvetica-Bold", 10)
     c.drawString(width - 200, right_y, "PRODUCT DETAILS:")
     right_y -= 15
