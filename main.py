@@ -107,9 +107,9 @@ async def generate_catalog_pdf(data: ProductData):
     # Image placements
     placements = {
         "raw12": (430, 650, 130, 100),
-        "raw29": (60, 480, 300, 160),
-        "su2":   (60, 290, 300, 160),
-        "su1":   (60, 100, 300, 160)
+        "raw29": (430, 650, 130, 100),
+        "su2":   (430, 650, 130, 100),
+        "su1":   (430, 650, 130, 100)
     }
 
     script_dir = os.path.dirname(__file__)
@@ -145,7 +145,7 @@ async def generate_catalog_pdf(data: ProductData):
     # Product Details + Specifications section at the bottom
     bottom_y = 280
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(width - 200, bottom_y, "PRODUCT DETAILS & SPECIFICATIONS:")
+    c.drawString(width - 200, bottom_y, "PRODUCT DETAILS:")
     bottom_y -= 15
     c.setFont("Helvetica", 9)
 
