@@ -73,7 +73,6 @@ def home():
 
 @app.post("/generate-catalog-pdf/")
 async def generate_catalog_pdf(data: ProductData):
-    # ✅ Use timestamp for unique filename
     filename = f"Catalog_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -94,8 +93,18 @@ async def generate_catalog_pdf(data: ProductData):
     c.setFillColor(colors.darkblue)
     c.drawCentredString(width / 2, height - 80, data.name.upper())
 
-    # Description section (replacing product details)
-    y_desc = height - 110
+    # Specifications (above description)
+    y_spec = height - 110
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(40, y_spec, "SPECIFICATIONS:")
+    y_spec -= 15
+    c.setFont("Helvetica", 9)
+    for spec in data.specifications:
+        c.drawString(50, y_spec, f"• {spec}")
+        y_spec -= 13
+
+    # Description section
+    y_desc = y_spec - 20
     c.setFont("Helvetica-Bold", 10)
     c.drawString(40, y_desc, "DESCRIPTION:")
     y_desc -= 15
@@ -141,7 +150,7 @@ async def generate_catalog_pdf(data: ProductData):
         except Exception as e:
             print(f"⚠️ Image error ({image_path}): {e}")
 
-    # Product Details + Specifications section at the bottom
+    # Product Details section
     bottom_y = 280
     c.setFont("Helvetica-Bold", 10)
     c.drawString(width - 200, bottom_y, "PRODUCT DETAILS:")
@@ -160,10 +169,6 @@ async def generate_catalog_pdf(data: ProductData):
         if value:
             c.drawString(width - 190, bottom_y, f"{label}: {value}")
             bottom_y -= 12
-
-    for spec in data.specifications:
-        c.drawString(width - 190, bottom_y, f"• {spec}")
-        bottom_y -= 12
 
     # Footer
     c.setFont("Helvetica", 8)
