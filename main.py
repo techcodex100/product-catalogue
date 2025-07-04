@@ -138,7 +138,7 @@ async def generate_catalog_pdf(data: ProductData):
             print(f"⚠️ Image error ({image_path}): {e}")
 
     # Right Side: Specifications and Product Details
-    right_y = 550
+    right_y = 600
     c.setFont("Helvetica-Bold", 10)
     c.drawString(width - 200, right_y, "SPECIFICATIONS:")
     right_y -= 15
