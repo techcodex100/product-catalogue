@@ -8,7 +8,7 @@ from reportlab.lib import colors
 from io import BytesIO
 import threading
 import os
-from datetime import datetime  # ✅ Added for unique filename
+from datetime import datetime
 
 app = FastAPI()
 lock = threading.Lock()
@@ -55,8 +55,7 @@ class ProductData(BaseModel):
                 "images": [
                     { "path": "su2.jpg" },
                     { "path": "raw29.png" },
-                    { "path": "raw12.jpeg" },
-                    { "path": "su1.jpg" }
+                    { "path": "raw12.jpeg" }
                 ]
             }
         }
@@ -93,19 +92,10 @@ async def generate_catalog_pdf(data: ProductData):
     c.setFillColor(colors.darkblue)
     c.drawCentredString(width / 2, height - 80, data.name.upper())
 
-    # Specifications (above description)
-    y_spec = height - 110
+    # Description
+    y_desc = height - 110
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, y_spec, "SPECIFICATIONS:")
-    y_spec -= 15
-    c.setFont("Helvetica", 9)
-    for spec in data.specifications:
-        c.drawString(50, y_spec, f"• {spec}")
-        y_spec -= 13
-
-    # Description section
-    y_desc = y_spec - 20
-    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(colors.black)
     c.drawString(40, y_desc, "DESCRIPTION:")
     y_desc -= 15
     c.setFont("Helvetica", 9)
@@ -113,20 +103,18 @@ async def generate_catalog_pdf(data: ProductData):
         c.drawString(50, y_desc, line)
         y_desc -= 13
 
-    # Image placements
+    # Images
     placements = {
         "raw29": (60, 480, 300, 160),
         "su2":   (60, 290, 300, 160),
         "su1":   (60, 100, 300, 160)
     }
-
     script_dir = os.path.dirname(__file__)
     MAX_WIDTH = 300
     MAX_HEIGHT = 200
 
     for img in data.images:
         basename = os.path.splitext(os.path.basename(img.path))[0].strip().replace(" ", "").lower()
-
         if basename in placements:
             x, y, w, h = placements[basename]
         elif all([img.x, img.y, img.w, img.h]):
@@ -138,7 +126,6 @@ async def generate_catalog_pdf(data: ProductData):
         scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0)
         w_scaled = w * scale
         h_scaled = h * scale
-
         image_path = img.path if os.path.isabs(img.path) else os.path.join(script_dir, img.path)
 
         try:
@@ -150,13 +137,21 @@ async def generate_catalog_pdf(data: ProductData):
         except Exception as e:
             print(f"⚠️ Image error ({image_path}): {e}")
 
-    # Product Details section
-    bottom_y = 280
+    # Right Side: Specifications and Product Details
+    right_y = 450
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(width - 200, bottom_y, "PRODUCT DETAILS:")
-    bottom_y -= 15
+    c.drawString(width - 200, right_y, "SPECIFICATIONS:")
+    right_y -= 15
     c.setFont("Helvetica", 9)
+    for spec in data.specifications:
+        c.drawString(width - 190, right_y, f"• {spec}")
+        right_y -= 12
 
+    right_y -= 10
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(width - 200, right_y, "PRODUCT DETAILS:")
+    right_y -= 15
+    c.setFont("Helvetica", 9)
     details = [
         ("HS Code", data.hs_code),
         ("Quantity", data.quantity),
@@ -167,8 +162,8 @@ async def generate_catalog_pdf(data: ProductData):
     ]
     for label, value in details:
         if value:
-            c.drawString(width - 190, bottom_y, f"{label}: {value}")
-            bottom_y -= 12
+            c.drawString(width - 190, right_y, f"{label}: {value}")
+            right_y -= 12
 
     # Footer
     c.setFont("Helvetica", 8)
